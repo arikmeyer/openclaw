@@ -95,6 +95,13 @@ const coreEntrySpecs: readonly CommandGroupDescriptorSpec<
       mod.registerMessageCommands(program, ctx);
     },
   ),
+  defineImportedCommandGroupSpec(
+    ["display"],
+    () => import("./register.display.js"),
+    (mod, { program, ctx }) => {
+      mod.registerDisplayCommands(program, ctx);
+    },
+  ),
   ...withProgramOnlySpecs(
     defineImportedProgramCommandGroupSpecs([
       {

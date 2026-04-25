@@ -18,6 +18,7 @@ import { createAgentsListTool } from "./tools/agents-list-tool.js";
 import { createCanvasTool } from "./tools/canvas-tool.js";
 import type { AnyAgentTool } from "./tools/common.js";
 import { createCronTool } from "./tools/cron-tool.js";
+import { createDisplayTool } from "./tools/display-tool.js";
 import { createEmbeddedCallGateway } from "./tools/embedded-gateway-stub.js";
 import { createGatewayTool } from "./tools/gateway-tool.js";
 import { createImageGenerateTool } from "./tools/image-generate-tool.js";
@@ -213,6 +214,16 @@ export function createOpenClawTools(
         requesterSenderId: options?.requesterSenderId ?? undefined,
         senderIsOwner: options?.senderIsOwner,
       });
+  const displayTool = options?.disableMessageTool
+    ? null
+    : createDisplayTool({
+        agentAccountId: options?.agentAccountId,
+        agentSessionKey: options?.agentSessionKey,
+        sessionId: options?.sessionId,
+        config: options?.config,
+        sandboxRoot: options?.sandboxRoot,
+        requesterSenderId: options?.requesterSenderId ?? undefined,
+      });
   const nodesToolBase = createNodesTool({
     agentSessionKey: options?.agentSessionKey,
     agentChannel: options?.agentChannel,
@@ -244,6 +255,7 @@ export function createOpenClawTools(
           }),
         ]),
     ...(!embedded && messageTool ? [messageTool] : []),
+    ...(!embedded && displayTool ? [displayTool] : []),
     createTtsTool({
       agentChannel: options?.agentChannel,
       config: resolvedConfig,
