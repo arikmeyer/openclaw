@@ -26,6 +26,19 @@ import { callGatewayTool, readGatewayCallOptions, resolveGatewayOptions } from "
 import { resolveNodeId } from "./nodes-utils.js";
 
 const DISPLAY_TARGETS = ["preview", "canvas", "telegram"] as const;
+const DISPLAY_BLOCK_TYPES = [
+  "heading",
+  "text",
+  "list",
+  "factList",
+  "table",
+  "timeline",
+  "alert",
+  "image",
+  "actions",
+] as const;
+const DISPLAY_ACTION_STYLES = ["primary", "secondary", "success", "danger"] as const;
+const DISPLAY_ALERT_TONES = ["info", "success", "warning", "danger"] as const;
 
 type DisplayTarget = (typeof DISPLAY_TARGETS)[number];
 
@@ -68,24 +81,148 @@ type DisplayToolOptions = {
   writeCard?: (buffer: Buffer) => Promise<string>;
 };
 
+const AgentDisplayActionSchema = Type.Object(
+  {
+    label: Type.String({ description: "Button label shown to the user." }),
+    value: Type.String({ description: "Opaque action value or callback identifier." }),
+    style: Type.Optional(
+      stringEnum(DISPLAY_ACTION_STYLES, {
+        description: "Optional visual/action tone. Secondary is the neutral default.",
+      }),
+    ),
+  },
+  { description: "Source-neutral display action." },
+);
+
+const AgentDisplayFactSchema = Type.Object(
+  {
+    label: Type.String({ description: "Fact label." }),
+    value: Type.String({ description: "Fact value." }),
+  },
+  { description: "Label/value fact for status, config, or result summaries." },
+);
+
+const AgentDisplayBlockSchema = Type.Object(
+  {
+    type: stringEnum(DISPLAY_BLOCK_TYPES, {
+      description:
+        "Block type: heading, text, list, factList, table, timeline, alert, image, or actions.",
+    }),
+    text: Type.Optional(Type.String({ description: "Heading, paragraph, or alert text." })),
+    level: Type.Optional(
+      Type.Integer({ minimum: 1, maximum: 3, description: "Heading level from 1 to 3." }),
+    ),
+    items: Type.Optional(
+      Type.Array(Type.Unknown(), {
+        description:
+          "Items for list or timeline blocks. Use strings for list; use { title, detail? } objects for timeline.",
+      }),
+    ),
+    facts: Type.Optional(
+      Type.Array(AgentDisplayFactSchema, {
+        description: "Label/value facts for factList blocks.",
+      }),
+    ),
+    columns: Type.Optional(
+      Type.Array(Type.String(), {
+        description: "Column labels for table blocks.",
+      }),
+    ),
+    rows: Type.Optional(
+      Type.Array(Type.Array(Type.String()), {
+        description: "Rows for table blocks.",
+      }),
+    ),
+    tone: Type.Optional(
+      stringEnum(DISPLAY_ALERT_TONES, {
+        description: "Alert tone for alert blocks.",
+      }),
+    ),
+    url: Type.Optional(Type.String({ description: "Image URL for image blocks." })),
+    alt: Type.Optional(Type.String({ description: "Alternative text for image blocks." })),
+    actions: Type.Optional(
+      Type.Array(AgentDisplayActionSchema, {
+        description: "Inline choices for actions blocks.",
+      }),
+    ),
+  },
+  {
+    description:
+      "AgentDisplayBlock. Use type to choose the block, then provide the matching fields.",
+  },
+);
+
+const AgentDisplayDocumentSchema = Type.Object(
+  {
+    title: Type.Optional(Type.String({ description: "Optional display title." })),
+    blocks: Type.Array(AgentDisplayBlockSchema, {
+      description: "Ordered source-neutral display blocks.",
+    }),
+    actions: Type.Optional(
+      Type.Array(AgentDisplayActionSchema, {
+        description: "Top-level inline choices shown after the display content.",
+      }),
+    ),
+  },
+  { description: "Source-neutral rich display document." },
+);
+
+const DISPLAY_TOOL_DESCRIPTION = [
+  "Render source-neutral rich displays for Canvas or Telegram.",
+  "",
+  "Use this when a response benefits from structured presentation instead of plain text: status summaries, comparisons, itineraries, ordered events, facts, warnings, image references, or user actions.",
+  "",
+  "Input forms: provide exactly one of document, markdown, text, or json. AgentDisplayDocument is { title?: string, blocks: AgentDisplayBlock[], actions?: AgentDisplayAction[] }.",
+  "",
+  "Supported AgentDisplayBlock types:",
+  "- heading: section titles.",
+  "- text: short paragraphs.",
+  "- list: simple bullet lists.",
+  "- factList: label/value facts for status, config, host checks, or result summaries.",
+  "- table: comparisons or structured rows.",
+  "- timeline: ordered events, itinerary steps, rollout history, or progress sequences.",
+  "- alert: warnings, blockers, success/failure callouts, or important state.",
+  "- image: image URL plus optional alt text.",
+  "- actions: inline user choices, approvals, acknowledgements, or next steps.",
+  "",
+  "Targets: preview inspects Canvas and Telegram output without sending; canvas pushes A2UI v0.8 JSONL; telegram sends Telegram HTML/buttons. For Telegram, set card=true when layout density or visual hierarchy should be sent as a PNG card attachment.",
+].join("\n");
+
 const DisplayToolSchema = Type.Object({
-  target: stringEnum(DISPLAY_TARGETS),
-  document: Type.Optional(Type.Any()),
-  markdown: Type.Optional(Type.String()),
-  text: Type.Optional(Type.String()),
-  json: Type.Optional(Type.Any()),
-  card: Type.Optional(Type.Boolean()),
+  target: stringEnum(DISPLAY_TARGETS, {
+    description: "Render target: preview, canvas, or telegram.",
+  }),
+  document: Type.Optional(AgentDisplayDocumentSchema),
+  markdown: Type.Optional(
+    Type.String({ description: "Markdown-ish source content to normalize into display blocks." }),
+  ),
+  text: Type.Optional(
+    Type.String({ description: "Plain text source content to render as a text block." }),
+  ),
+  json: Type.Optional(
+    Type.Any({
+      description:
+        "Arbitrary JSON source content. Structured display documents are normalized; other JSON is shown as formatted text.",
+    }),
+  ),
+  card: Type.Optional(
+    Type.Boolean({
+      description: "Telegram only. Attach a PNG card when layout density or hierarchy matters.",
+    }),
+  ),
   // Canvas routing.
-  node: Type.Optional(Type.String()),
-  gatewayUrl: Type.Optional(Type.String()),
-  gatewayToken: Type.Optional(Type.String()),
-  timeoutMs: Type.Optional(Type.Number()),
+  node: Type.Optional(Type.String({ description: "Canvas node id for target=canvas." })),
+  gatewayUrl: Type.Optional(Type.String({ description: "Optional gateway URL override." })),
+  gatewayToken: Type.Optional(Type.String({ description: "Optional gateway token override." })),
+  timeoutMs: Type.Optional(Type.Number({ description: "Optional gateway timeout in ms." })),
   // Telegram routing.
-  to: Type.Optional(Type.String()),
-  accountId: Type.Optional(Type.String()),
-  threadId: Type.Optional(Type.String()),
-  replyTo: Type.Optional(Type.String()),
-  forceDocument: Type.Optional(Type.Boolean()),
+  to: Type.Optional(Type.String({ description: "Telegram target for target=telegram." })),
+  accountId: Type.Optional(Type.String({ description: "Optional Telegram account id override." })),
+  threadId: Type.Optional(Type.String({ description: "Optional Telegram topic/thread id." })),
+  replyTo: Type.Optional(Type.String({ description: "Optional message id to reply to." })),
+  forceDocument: Type.Optional(
+    Type.Boolean({ description: "Telegram only. Force document-style delivery when supported." }),
+  ),
 });
 
 function readDisplayInput(params: Record<string, unknown>): AgentDisplayInput {
@@ -181,8 +318,7 @@ export function createDisplayTool(options?: DisplayToolOptions): AnyAgentTool {
     label: "Display",
     name: "display",
     displaySummary: "Render source-neutral rich displays for Canvas or Telegram.",
-    description:
-      "Render source-neutral AgentDisplayDocument content to Canvas A2UI v0.8 or Telegram-native rich payloads.",
+    description: DISPLAY_TOOL_DESCRIPTION,
     parameters: DisplayToolSchema,
     execute: async (_toolCallId, args, signal) => {
       const params = { ...(args as Record<string, unknown>) };

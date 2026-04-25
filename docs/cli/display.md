@@ -14,6 +14,23 @@ TabiPlanner integration or another producer-specific runtime.
 The display contract lives in OpenClaw runtime code. Producers can provide markdown, plain text,
 structured JSON, or an `AgentDisplayDocument`; renderers then target the active surface.
 
+## Block selection
+
+Agents see the block vocabulary in the native `display` tool schema and description. Use blocks by
+presentation intent:
+
+| Block      | Use for                                                                 |
+| ---------- | ----------------------------------------------------------------------- |
+| `heading`  | Section titles                                                          |
+| `text`     | Short paragraphs                                                        |
+| `list`     | Simple bullet lists                                                     |
+| `factList` | Status, config, host checks, and other label/value summaries            |
+| `table`    | Comparisons or structured rows                                          |
+| `timeline` | Ordered events, itinerary steps, rollout history, or progress sequences |
+| `alert`    | Warnings, blockers, success/failure callouts, or important state        |
+| `image`    | Image URL plus optional alt text                                        |
+| `actions`  | User choices, approvals, acknowledgements, or next steps                |
+
 ## Smoke tests
 
 ```bash
@@ -43,3 +60,6 @@ Agents can use the `display` tool with:
 
 Telegram card mode is opt-in with `card=true`; it creates a PNG attachment and sends the same
 semantic document through the normal Telegram outbound path.
+
+Use plain messages for normal conversation. Use `display` when structure helps the recipient scan,
+compare, decide, or preserve context across Canvas and Telegram.

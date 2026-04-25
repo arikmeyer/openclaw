@@ -317,6 +317,16 @@ curl "https://api.telegram.org/bot<bot_token>/getUpdates"
     The shared display contract is source-neutral and lives in the OpenClaw runtime. TabiPlanner
     can produce display documents, but Telegram rendering does not depend on TabiPlanner.
 
+    Block choice:
+
+    | Block | Telegram use |
+    | --- | --- |
+    | `factList` | Status/config summaries and key results |
+    | `table` | Comparisons rendered as compact text or card content |
+    | `timeline` | Ordered updates, itinerary steps, and rollout history |
+    | `alert` | Warnings, blockers, or success/failure state |
+    | `actions` | Inline keyboard choices when the surface allows buttons |
+
     Local smoke checks:
 
 ```bash

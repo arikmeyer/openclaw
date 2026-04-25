@@ -114,6 +114,11 @@ The `display` smoke command renders the same OpenClaw-owned `AgentDisplayDocumen
 agents use for rich displays. It emits A2UI v0.8 JSONL only: `surfaceUpdate` and
 `beginRendering`, never `createSurface`.
 
+Canvas rendering currently maps rich display blocks to A2UI text components. `heading`, `text`,
+`list`, `factList`, `table`, `timeline`, `alert`, `image`, and `actions` are accepted by the shared
+document contract; tables, image references, and actions are flattened into readable text for A2UI
+v0.8.
+
 ## Triggering agent runs from Canvas
 
 Canvas can trigger new agent runs via deep links:

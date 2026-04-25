@@ -9,7 +9,50 @@ function firstText(result: Awaited<ReturnType<ReturnType<typeof createDisplayToo
   return content?.type === "text" ? content.text : "";
 }
 
+const DISPLAY_BLOCK_TYPES = [
+  "heading",
+  "text",
+  "list",
+  "factList",
+  "table",
+  "timeline",
+  "alert",
+  "image",
+  "actions",
+] as const;
+
 describe("display tool", () => {
+  it("describes available document blocks and target selection to agents", () => {
+    const tool = createDisplayTool();
+
+    expect(tool.description).toContain("AgentDisplayDocument");
+    expect(tool.description).toContain("card=true");
+    for (const target of ["preview", "canvas", "telegram"]) {
+      expect(tool.description).toContain(target);
+    }
+    for (const blockType of DISPLAY_BLOCK_TYPES) {
+      expect(tool.description).toContain(blockType);
+    }
+    for (const guidance of ["status", "comparisons", "ordered events", "warnings"]) {
+      expect(tool.description).toContain(guidance);
+    }
+  });
+
+  it("exposes the AgentDisplayDocument block vocabulary in the native tool schema", () => {
+    const tool = createDisplayTool();
+    const parameters = tool.parameters as {
+      properties?: Record<string, unknown>;
+    };
+    const documentSchema = parameters.properties?.document;
+    const encodedDocumentSchema = JSON.stringify(documentSchema);
+
+    expect(encodedDocumentSchema).toContain('"blocks"');
+    expect(encodedDocumentSchema).toContain('"actions"');
+    for (const blockType of DISPLAY_BLOCK_TYPES) {
+      expect(encodedDocumentSchema).toContain(`"${blockType}"`);
+    }
+  });
+
   it("previews source-neutral content for Canvas and Telegram without sending", async () => {
     const tool = createDisplayTool();
 
