@@ -1,4 +1,3 @@
-import sharp from "sharp";
 import type { ReplyPayload } from "../auto-reply/types.js";
 
 export type AgentDisplayActionStyle = "primary" | "secondary" | "success" | "danger";
@@ -479,6 +478,7 @@ function cardLines(doc: AgentDisplayDocument): string[] {
 }
 
 export async function renderTelegramCard(doc: AgentDisplayDocument): Promise<TelegramDisplayCard> {
+  const { default: sharp } = await import("sharp");
   const lines = cardLines(doc);
   const height = Math.max(320, 96 + lines.length * 34);
   const svg = `
