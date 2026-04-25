@@ -24,6 +24,7 @@ This page describes the current CLI behavior. If commands change, update this do
 - [`uninstall`](/cli/uninstall)
 - [`update`](/cli/update)
 - [`message`](/cli/message)
+- [`display`](/cli/display)
 - [`agent`](/cli/agent)
 - [`agents`](/cli/agents)
 - [`acp`](/cli/acp)
@@ -201,6 +202,8 @@ openclaw [--dev] [--profile <name>] <command>
     timeout
     kick
     ban
+  display
+    smoke
   agent
   agents
     list

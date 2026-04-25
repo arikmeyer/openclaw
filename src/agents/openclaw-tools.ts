@@ -16,6 +16,7 @@ import { createAgentsListTool } from "./tools/agents-list-tool.js";
 import { createCanvasTool } from "./tools/canvas-tool.js";
 import type { AnyAgentTool } from "./tools/common.js";
 import { createCronTool } from "./tools/cron-tool.js";
+import { createDisplayTool } from "./tools/display-tool.js";
 import { createGatewayTool } from "./tools/gateway-tool.js";
 import { createImageGenerateTool } from "./tools/image-generate-tool.js";
 import { createImageTool } from "./tools/image-tool.js";
@@ -219,6 +220,14 @@ export function createOpenClawTools(
     }),
     createCronTool({
       agentSessionKey: options?.agentSessionKey,
+    }),
+    createDisplayTool({
+      agentAccountId: options?.agentAccountId,
+      agentSessionKey: options?.agentSessionKey,
+      sessionId: options?.sessionId,
+      config: options?.config,
+      sandboxRoot: options?.sandboxRoot,
+      requesterSenderId: options?.requesterSenderId ?? undefined,
     }),
     ...(messageTool ? [messageTool] : []),
     createTtsTool({

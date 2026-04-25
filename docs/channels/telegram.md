@@ -305,6 +305,30 @@ curl "https://api.telegram.org/bot<bot_token>/getUpdates"
 
   </Accordion>
 
+  <Accordion title="Rich displays">
+    OpenClaw rich displays use a hybrid Telegram strategy:
+
+    - Native HTML text for most responses.
+    - Inline keyboards for actions when `channels.telegram.capabilities.inlineButtons` allows the
+      current DM/group surface.
+    - PNG cards for layout-heavy displays, rendered from SVG through the existing `sharp`
+      dependency.
+
+    The shared display contract is source-neutral and lives in the OpenClaw runtime. TabiPlanner
+    can produce display documents, but Telegram rendering does not depend on TabiPlanner.
+
+    Local smoke checks:
+
+```bash
+openclaw display smoke --target telegram --json
+openclaw display smoke --target card --json
+```
+
+    Agents use the `display` tool with `target="telegram"`. Card mode is explicit with
+    `card=true`; otherwise OpenClaw prefers native Telegram HTML plus inline buttons.
+
+  </Accordion>
+
   <Accordion title="Native commands and custom commands">
     Telegram command menu registration is handled at startup with `setMyCommands`.
 

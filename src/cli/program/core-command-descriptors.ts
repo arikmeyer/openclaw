@@ -56,6 +56,11 @@ const coreCliCommandCatalog = defineCommandDescriptorCatalog([
     hasSubcommands: true,
   },
   {
+    name: "display",
+    description: "Render source-neutral rich display payloads",
+    hasSubcommands: true,
+  },
+  {
     name: "mcp",
     description: "Manage OpenClaw MCP config and channel bridge",
     hasSubcommands: true,

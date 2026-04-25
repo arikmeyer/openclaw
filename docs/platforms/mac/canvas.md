@@ -104,6 +104,16 @@ Quick smoke:
 openclaw nodes canvas a2ui push --node <id> --text "Hello from A2UI"
 ```
 
+Source-neutral display smoke:
+
+```bash
+openclaw display smoke --target a2ui
+```
+
+The `display` smoke command renders the same OpenClaw-owned `AgentDisplayDocument` contract that
+agents use for rich displays. It emits A2UI v0.8 JSONL only: `surfaceUpdate` and
+`beginRendering`, never `createSurface`.
+
 ## Triggering agent runs from Canvas
 
 Canvas can trigger new agent runs via deep links:
