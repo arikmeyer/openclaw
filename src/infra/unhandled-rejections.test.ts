@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isAbortError,
+  isBonjourCiaoCancellationError,
   isTransientNetworkError,
   isTransientSqliteError,
   isTransientUnhandledRejectionError,
@@ -46,6 +47,17 @@ describe("isAbortError", () => {
       expect(isAbortError(value)).toBe(false);
     },
   );
+});
+
+describe("isBonjourCiaoCancellationError", () => {
+  it("returns true for ciao probing and announcement cancellations", () => {
+    expect(isBonjourCiaoCancellationError(new Error("CIAO PROBING CANCELLED"))).toBe(true);
+    expect(isBonjourCiaoCancellationError("ciao announcement cancelled during cleanup")).toBe(true);
+  });
+
+  it("returns false for unrelated ciao errors", () => {
+    expect(isBonjourCiaoCancellationError(new Error("CIAO responder failed"))).toBe(false);
+  });
 });
 
 describe("isTransientNetworkError", () => {

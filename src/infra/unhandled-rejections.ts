@@ -68,6 +68,7 @@ const TRANSIENT_NETWORK_MESSAGE_CODE_RE =
 
 const TRANSIENT_SQLITE_MESSAGE_CODE_RE =
   /\b(SQLITE_BUSY|SQLITE_CANTOPEN|SQLITE_IOERR|SQLITE_LOCKED)\b/i;
+const CIAO_CANCELLATION_MESSAGE_RE = /^CIAO (?:ANNOUNCEMENT|PROBING) CANCELLED\b/i;
 
 const TRANSIENT_NETWORK_MESSAGE_SNIPPETS = [
   "getaddrinfo",
@@ -310,8 +311,33 @@ export function isTransientSqliteError(err: unknown): boolean {
   return false;
 }
 
+function readUnhandledMessage(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (
+    value &&
+    typeof value === "object" &&
+    typeof (value as { message?: unknown }).message === "string"
+  ) {
+    return (value as { message: string }).message;
+  }
+  return "";
+}
+
+export function isBonjourCiaoCancellationError(err: unknown): boolean {
+  const candidates = [err, ...collectNestedUnhandledErrorCandidates(err)];
+  return candidates.some((candidate) =>
+    CIAO_CANCELLATION_MESSAGE_RE.test(readUnhandledMessage(candidate).trim()),
+  );
+}
+
 export function isTransientUnhandledRejectionError(err: unknown): boolean {
-  return isTransientNetworkError(err) || isTransientSqliteError(err);
+  return (
+    isTransientNetworkError(err) ||
+    isTransientSqliteError(err) ||
+    isBonjourCiaoCancellationError(err)
+  );
 }
 
 export function registerUnhandledRejectionHandler(handler: UnhandledRejectionHandler): () => void {
