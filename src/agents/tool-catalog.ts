@@ -214,6 +214,14 @@ const CORE_TOOL_DEFINITIONS: CoreToolDefinition[] = [
     includeInOpenClawGroup: true,
   },
   {
+    id: "display",
+    label: "display",
+    description: "Render source-neutral rich displays",
+    sectionId: "ui",
+    profiles: ["coding", "messaging"],
+    includeInOpenClawGroup: true,
+  },
+  {
     id: "message",
     label: "message",
     description: "Send messages",

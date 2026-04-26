@@ -21,6 +21,7 @@ const coreTools = [
   stubActionTool("canvas", ["create", "read"]),
   stubActionTool("nodes", ["list", "invoke"]),
   stubActionTool("cron", ["schedule", "cancel"]),
+  stubTool("display"),
   stubActionTool("message", ["send", "reply"]),
   stubActionTool("gateway", ["status"]),
   stubActionTool("agents_list", ["list", "show"]),

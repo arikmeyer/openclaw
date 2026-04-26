@@ -346,11 +346,22 @@ describe("createOpenClawCodingTools", () => {
       config: { tools: { profile: "messaging" } },
     });
     const names = new Set(tools.map((tool) => tool.name));
+    expect(names.has("display")).toBe(true);
     expect(names.has("message")).toBe(true);
     expect(names.has("sessions_send")).toBe(true);
     expect(names.has("sessions_spawn")).toBe(false);
     expect(names.has("exec")).toBe(false);
     expect(names.has("browser")).toBe(false);
+  });
+
+  it("keeps display in the coding profile when message is disabled", () => {
+    const tools = createOpenClawCodingTools({
+      config: { tools: { profile: "coding" } },
+      disableMessageTool: true,
+    });
+    const names = new Set(tools.map((tool) => tool.name));
+    expect(names.has("display")).toBe(true);
+    expect(names.has("message")).toBe(false);
   });
 
   it("can keep message available when a cron route needs it under the coding profile", () => {
