@@ -422,6 +422,17 @@ export function extractMessagingToolSend(
     const to = normalizeTargetForProvider(provider, toRaw);
     return to ? { tool: toolName, provider, accountId, to } : undefined;
   }
+  if (toolName === "display") {
+    if (normalizeOptionalString(args.target) !== "telegram") {
+      return undefined;
+    }
+    const toRaw = resolveMessageToolTarget(args);
+    if (!toRaw) {
+      return undefined;
+    }
+    const to = normalizeTargetForProvider("telegram", toRaw);
+    return to ? { tool: toolName, provider: "telegram", accountId, to } : undefined;
+  }
   const providerId = normalizeChannelId(toolName);
   if (!providerId) {
     return undefined;

@@ -255,7 +255,7 @@ export function createOpenClawTools(
           }),
         ]),
     ...(!embedded && messageTool ? [messageTool] : []),
-    ...(!embedded && displayTool ? [displayTool] : []),
+    ...(displayTool ? [displayTool] : []),
     createTtsTool({
       agentChannel: options?.agentChannel,
       config: resolvedConfig,

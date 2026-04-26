@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   probeGateway: vi.fn(),
   resolveGatewayProbeAuthResolution: vi.fn(),
   pickGatewaySelfPresence: vi.fn(),
+  loadGatewayTlsRuntime: vi.fn(),
 }));
 
 vi.mock("../gateway/connection-details.js", () => ({
@@ -29,6 +30,10 @@ vi.mock("./gateway-presence.js", () => ({
   pickGatewaySelfPresence: mocks.pickGatewaySelfPresence,
 }));
 
+vi.mock("../infra/tls/gateway.js", () => ({
+  loadGatewayTlsRuntime: mocks.loadGatewayTlsRuntime,
+}));
+
 describe("resolveGatewayProbeSnapshot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -47,6 +52,10 @@ describe("resolveGatewayProbeSnapshot", () => {
       warning: "warn",
     });
     mocks.pickGatewaySelfPresence.mockReturnValue({ host: "box" });
+    mocks.loadGatewayTlsRuntime.mockResolvedValue({
+      enabled: true,
+      fingerprintSha256: "sha256:test-fingerprint",
+    });
   });
 
   it("skips auth resolution and probe for missing remote urls by default", async () => {
@@ -112,6 +121,43 @@ describe("resolveGatewayProbeSnapshot", () => {
       password: "pw",
     });
     expect(result.gatewayProbeAuthWarning).toBe("warn");
+  });
+
+  it("passes the local TLS fingerprint to wss local tailnet probes", async () => {
+    mocks.buildGatewayConnectionDetailsWithResolvers.mockReturnValue({
+      url: "wss://100.64.0.9:18789",
+      urlSource: "local tailnet",
+      message: "Gateway target: wss://100.64.0.9:18789",
+    });
+    mocks.resolveGatewayProbeTarget.mockReturnValue({
+      mode: "local",
+      gatewayMode: "local",
+      remoteUrlMissing: false,
+    });
+    mocks.probeGateway.mockResolvedValue({
+      ok: true,
+      url: "wss://100.64.0.9:18789",
+      connectLatencyMs: 12,
+      error: null,
+      close: null,
+      health: {},
+      status: {},
+      presence: [{ host: "box" }],
+      configSnapshot: null,
+    });
+
+    await resolveGatewayProbeSnapshot({
+      cfg: { gateway: { tls: { enabled: true } } },
+      opts: {},
+    });
+
+    expect(mocks.loadGatewayTlsRuntime).toHaveBeenCalledWith({ enabled: true });
+    expect(mocks.probeGateway).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "wss://100.64.0.9:18789",
+        tlsFingerprint: "sha256:test-fingerprint",
+      }),
+    );
   });
 
   it("merges auth warnings into failed probe errors by default", async () => {

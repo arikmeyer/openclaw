@@ -15,6 +15,7 @@ export { pickGatewaySelfPresence } from "./gateway-presence.js";
 
 let gatewayProbeModulePromise: Promise<typeof import("./status.gateway-probe.js")> | undefined;
 let probeGatewayModulePromise: Promise<typeof import("../gateway/probe.js")> | undefined;
+let gatewayTlsModulePromise: Promise<typeof import("../infra/tls/gateway.js")> | undefined;
 
 function loadGatewayProbeModule() {
   gatewayProbeModulePromise ??= import("./status.gateway-probe.js");
@@ -24,6 +25,30 @@ function loadGatewayProbeModule() {
 function loadProbeGatewayModule() {
   probeGatewayModulePromise ??= import("../gateway/probe.js");
   return probeGatewayModulePromise;
+}
+
+function loadGatewayTlsModule() {
+  gatewayTlsModulePromise ??= import("../infra/tls/gateway.js");
+  return gatewayTlsModulePromise;
+}
+
+async function resolveLocalGatewayProbeTlsFingerprint(
+  cfg: OpenClawConfig,
+  gatewayConnection: ReturnType<typeof buildGatewayConnectionDetailsWithResolvers>,
+): Promise<string | undefined> {
+  if (cfg.gateway?.tls?.enabled !== true || !gatewayConnection.url.startsWith("wss://")) {
+    return undefined;
+  }
+  if (
+    gatewayConnection.urlSource !== "local loopback" &&
+    gatewayConnection.urlSource !== "local tailnet"
+  ) {
+    return undefined;
+  }
+  const runtime = await loadGatewayTlsModule()
+    .then(({ loadGatewayTlsRuntime }) => loadGatewayTlsRuntime(cfg.gateway?.tls))
+    .catch(() => null);
+  return runtime?.enabled ? runtime.fingerprintSha256 : undefined;
 }
 
 export type MemoryStatusSnapshot = MemoryProviderStatus & {
@@ -106,12 +131,16 @@ export async function resolveGatewayProbeSnapshot(params: {
       )
     : { auth: {}, warning: undefined };
   let gatewayProbeAuthWarning = gatewayProbeAuthResolution.warning;
+  const tlsFingerprint = shouldProbe
+    ? await resolveLocalGatewayProbeTlsFingerprint(params.cfg, gatewayConnection)
+    : undefined;
   const gatewayProbe = shouldProbe
     ? await loadProbeGatewayModule()
         .then(({ probeGateway }) =>
           probeGateway({
             url: gatewayConnection.url,
             auth: gatewayProbeAuthResolution.auth,
+            tlsFingerprint,
             timeoutMs: Math.min(params.opts.all ? 5000 : 2500, params.opts.timeoutMs ?? 10_000),
             detailLevel: params.opts.detailLevel ?? "presence",
           }),

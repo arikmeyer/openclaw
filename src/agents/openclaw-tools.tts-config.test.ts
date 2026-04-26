@@ -44,6 +44,10 @@ vi.mock("./tools/cron-tool.js", () => ({
   createCronTool: () => mocks.stubTool("cron"),
 }));
 
+vi.mock("./tools/display-tool.js", () => ({
+  createDisplayTool: () => mocks.stubTool("display"),
+}));
+
 vi.mock("./tools/gateway-tool.js", () => ({
   createGatewayTool: () => mocks.stubTool("gateway"),
 }));
@@ -160,6 +164,24 @@ describe("createOpenClawTools TTS config wiring", () => {
       );
     } finally {
       __testing.setDepsForTest();
+    }
+  });
+
+  it("keeps display available in embedded runs", async () => {
+    const { setEmbeddedMode } = await import("../infra/embedded-mode.js");
+    const { createOpenClawTools } = await import("./openclaw-tools.js");
+    setEmbeddedMode(true);
+    try {
+      const names = createOpenClawTools({
+        disablePluginTools: true,
+      }).map((tool) => tool.name);
+
+      expect(names).toContain("display");
+      expect(names).not.toContain("message");
+      expect(names).not.toContain("canvas");
+      expect(names).not.toContain("gateway");
+    } finally {
+      setEmbeddedMode(false);
     }
   });
 });

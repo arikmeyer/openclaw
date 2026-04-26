@@ -60,4 +60,21 @@ describe("extractMessagingToolSend", () => {
     expect(result?.provider).toBe("telegram");
     expect(result?.to).toBe("telegram:123");
   });
+
+  it("treats display target=telegram as a Telegram send", () => {
+    const result = extractMessagingToolSend("display", {
+      target: "telegram",
+      to: "123",
+      document: {
+        title: "Status",
+        blocks: [{ type: "text", text: "Ready" }],
+      },
+    });
+
+    expect(result).toEqual({
+      tool: "display",
+      provider: "telegram",
+      to: "telegram:123",
+    });
+  });
 });

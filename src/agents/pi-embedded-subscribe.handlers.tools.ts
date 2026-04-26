@@ -273,6 +273,34 @@ function collectMessagingMediaUrlsFromRecord(record: Record<string, unknown>): s
   return urls;
 }
 
+function readDisplayPendingText(args: Record<string, unknown>): string | undefined {
+  if (typeof args.text === "string" && args.text.trim()) {
+    return args.text;
+  }
+  if (typeof args.markdown === "string" && args.markdown.trim()) {
+    return args.markdown;
+  }
+  const document = args.document;
+  if (document && typeof document === "object") {
+    const title = (document as Record<string, unknown>).title;
+    if (typeof title === "string" && title.trim()) {
+      return title;
+    }
+  }
+  return undefined;
+}
+
+function readPendingMessagingText(
+  toolName: string,
+  args: Record<string, unknown>,
+): string | undefined {
+  if (toolName === "display") {
+    return readDisplayPendingText(args);
+  }
+  const text = (args.content as string) ?? (args.message as string);
+  return typeof text === "string" && text.trim() ? text : undefined;
+}
+
 function collectMessagingMediaUrlsFromToolResult(result: unknown): string[] {
   const urls: string[] = [];
   const seen = new Set<string>();
@@ -699,9 +727,8 @@ export function handleToolExecutionStart(
         if (sendTarget) {
           ctx.state.pendingMessagingTargets.set(toolCallId, sendTarget);
         }
-        // Field names vary by tool: Discord/Slack use "content", sessions_send uses "message"
-        const text = (argsRecord.content as string) ?? (argsRecord.message as string);
-        if (text && typeof text === "string") {
+        const text = readPendingMessagingText(toolName, argsRecord);
+        if (text) {
           ctx.state.pendingMessagingTexts.set(toolCallId, text);
           ctx.log.debug(`Tracking pending messaging text: tool=${toolName} len=${text.length}`);
         }
