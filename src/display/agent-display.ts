@@ -432,11 +432,14 @@ function renderBlockA2UIItems(block: AgentDisplayBlock): A2UITextItem[] {
 export function renderA2UIV08(doc: AgentDisplayDocument): string {
   const surfaceId = "main";
   const rootId = "root";
-  const blockItems = doc.blocks.flatMap(renderBlockA2UIItems);
-  const textItems =
-    doc.title && !blockItems.some((item) => item.text === doc.title)
-      ? [{ text: doc.title, usageHint: "h1" as const }, ...blockItems]
-      : blockItems;
+  const blockItems = doc.blocks.flatMap((block) =>
+    doc.title && block.type === "heading" && block.text === doc.title
+      ? []
+      : renderBlockA2UIItems(block),
+  );
+  const textItems = doc.title
+    ? [{ text: doc.title, usageHint: "h1" as const }, ...blockItems]
+    : blockItems;
   const itemIds = textItems.map((_, index) => `display-text-${index}`);
   const components = [
     {

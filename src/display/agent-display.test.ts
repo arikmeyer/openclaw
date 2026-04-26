@@ -126,6 +126,57 @@ describe("AgentDisplayDocument", () => {
     );
   });
 
+  it("keeps the document title as the single Canvas h1 when a duplicate heading omits level", () => {
+    const doc = normalizeAgentDisplayDocument({
+      document: {
+        title: "OpenClaw display smoke",
+        blocks: [
+          { type: "heading", text: "OpenClaw display smoke" },
+          { type: "text", text: "Source-neutral display rendering is available." },
+        ],
+      },
+    });
+
+    const jsonl = renderA2UIV08(doc);
+    const messages = jsonl.split("\n").map((line) => JSON.parse(line));
+    const textComponents = messages[0].surfaceUpdate.components
+      .map(
+        (component: {
+          component?: { Text?: { text?: { literalString?: string }; usageHint?: string } };
+        }) => component.component?.Text,
+      )
+      .filter(Boolean);
+
+    expect(
+      textComponents.filter(
+        (component: { text?: { literalString?: string }; usageHint?: string }) =>
+          component.text?.literalString === "OpenClaw display smoke",
+      ),
+    ).toEqual([{ text: { literalString: "OpenClaw display smoke" }, usageHint: "h1" }]);
+  });
+
+  it("does not treat body text matching the document title as a duplicate heading", () => {
+    const doc = normalizeAgentDisplayDocument({
+      document: {
+        title: "Status",
+        blocks: [{ type: "text", text: "Status" }],
+      },
+    });
+
+    const jsonl = renderA2UIV08(doc);
+    const messages = jsonl.split("\n").map((line) => JSON.parse(line));
+    const textComponents = messages[0].surfaceUpdate.components
+      .map(
+        (component: {
+          component?: { Text?: { text?: { literalString?: string }; usageHint?: string } };
+        }) => component.component?.Text,
+      )
+      .filter(Boolean);
+
+    expect(textComponents).toContainEqual({ text: { literalString: "Status" }, usageHint: "h1" });
+    expect(textComponents).toContainEqual({ text: { literalString: "Status" }, usageHint: "body" });
+  });
+
   it("renders layout-heavy documents to a PNG card without browser runtime", async () => {
     const doc = normalizeAgentDisplayDocument({
       document: {

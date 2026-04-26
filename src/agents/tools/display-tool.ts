@@ -226,6 +226,12 @@ const DisplayToolSchema = Type.Object({
 });
 
 function readDisplayInput(params: Record<string, unknown>): AgentDisplayInput {
+  const presentInputs = ["document", "markdown", "text", "json"].filter(
+    (key) => params[key] !== undefined,
+  );
+  if (presentInputs.length !== 1) {
+    throw new Error("Provide exactly one of document, markdown, text, or json");
+  }
   if (params.document !== undefined) {
     return { document: params.document };
   }

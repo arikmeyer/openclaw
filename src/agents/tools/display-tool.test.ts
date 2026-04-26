@@ -76,6 +76,18 @@ describe("display tool", () => {
     expect(firstText(result)).toContain("<b>Kyoto</b>");
   });
 
+  it("rejects ambiguous display input forms instead of silently choosing one", async () => {
+    const tool = createDisplayTool();
+
+    await expect(
+      tool.execute("call-1", {
+        target: "preview",
+        markdown: "# Kyoto",
+        text: "Plain fallback",
+      }),
+    ).rejects.toThrow("Provide exactly one of document, markdown, text, or json");
+  });
+
   it("pushes A2UI v0.8 JSONL through the Canvas gateway adapter", async () => {
     const pushed: Array<{ jsonl: string }> = [];
     const pushCanvasA2UI = vi.fn(async (params: { jsonl: string }) => {
