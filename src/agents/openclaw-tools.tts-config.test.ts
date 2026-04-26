@@ -173,6 +173,7 @@ describe("createOpenClawTools TTS config wiring", () => {
     setEmbeddedMode(true);
     try {
       const names = createOpenClawTools({
+        disableMessageTool: true,
         disablePluginTools: true,
       }).map((tool) => tool.name);
 

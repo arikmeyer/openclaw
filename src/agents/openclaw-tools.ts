@@ -214,16 +214,14 @@ export function createOpenClawTools(
         requesterSenderId: options?.requesterSenderId ?? undefined,
         senderIsOwner: options?.senderIsOwner,
       });
-  const displayTool = options?.disableMessageTool
-    ? null
-    : createDisplayTool({
-        agentAccountId: options?.agentAccountId,
-        agentSessionKey: options?.agentSessionKey,
-        sessionId: options?.sessionId,
-        config: options?.config,
-        sandboxRoot: options?.sandboxRoot,
-        requesterSenderId: options?.requesterSenderId ?? undefined,
-      });
+  const displayTool = createDisplayTool({
+    agentAccountId: options?.agentAccountId,
+    agentSessionKey: options?.agentSessionKey,
+    sessionId: options?.sessionId,
+    config: options?.config,
+    sandboxRoot: options?.sandboxRoot,
+    requesterSenderId: options?.requesterSenderId ?? undefined,
+  });
   const nodesToolBase = createNodesTool({
     agentSessionKey: options?.agentSessionKey,
     agentChannel: options?.agentChannel,
