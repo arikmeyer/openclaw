@@ -1,5 +1,6 @@
 import { resolveConfigPath, resolveGatewayPort } from "../config/paths.js";
 import type { OpenClawConfig } from "../config/types.js";
+import { pickPrimaryTailnetIPv4 } from "../infra/tailnet.js";
 import { normalizeOptionalString } from "../shared/string-coerce.js";
 import { isSecureWebSocketUrl } from "./net.js";
 
@@ -15,7 +16,30 @@ type GatewayConnectionDetailResolvers = {
   loadConfig?: () => OpenClawConfig;
   resolveConfigPath?: (env: NodeJS.ProcessEnv) => string;
   resolveGatewayPort?: (cfg?: OpenClawConfig, env?: NodeJS.ProcessEnv) => number;
+  pickPrimaryTailnetIPv4?: () => string | undefined;
 };
+
+function resolveLocalGatewayTarget(params: {
+  bindMode: string;
+  port: number;
+  scheme: "ws" | "wss";
+  pickPrimaryTailnetIPv4: () => string | undefined;
+}): { url: string; source: string } {
+  if (params.bindMode === "tailnet") {
+    const tailnetIPv4 = normalizeOptionalString(params.pickPrimaryTailnetIPv4());
+    if (tailnetIPv4) {
+      return {
+        url: `${params.scheme}://${tailnetIPv4}:${params.port}`,
+        source: "local tailnet",
+      };
+    }
+  }
+
+  return {
+    url: `${params.scheme}://127.0.0.1:${params.port}`,
+    source: "local loopback",
+  };
+}
 
 export function buildGatewayConnectionDetailsWithResolvers(
   options: {
@@ -38,7 +62,12 @@ export function buildGatewayConnectionDetailsWithResolvers(
     resolvers.resolveGatewayPort?.(config, process.env) ?? resolveGatewayPort(config);
   const bindMode = config.gateway?.bind ?? "loopback";
   const scheme = tlsEnabled ? "wss" : "ws";
-  const localUrl = `${scheme}://127.0.0.1:${localPort}`;
+  const localTarget = resolveLocalGatewayTarget({
+    bindMode,
+    port: localPort,
+    scheme,
+    pickPrimaryTailnetIPv4: resolvers.pickPrimaryTailnetIPv4 ?? pickPrimaryTailnetIPv4,
+  });
   const cliUrlOverride = normalizeOptionalString(options.url);
   const envUrlOverride = cliUrlOverride
     ? undefined
@@ -48,7 +77,7 @@ export function buildGatewayConnectionDetailsWithResolvers(
   const remoteMisconfigured = isRemoteMode && !urlOverride && !remoteUrl;
   const urlSourceHint =
     options.urlSource ?? (cliUrlOverride ? "cli" : envUrlOverride ? "env" : undefined);
-  const url = urlOverride || remoteUrl || localUrl;
+  const url = urlOverride || remoteUrl || localTarget.url;
   const urlSource = urlOverride
     ? urlSourceHint === "env"
       ? "env OPENCLAW_GATEWAY_URL"
@@ -57,7 +86,7 @@ export function buildGatewayConnectionDetailsWithResolvers(
       ? "config gateway.remote.url"
       : remoteMisconfigured
         ? "missing gateway.remote.url (fallback local)"
-        : "local loopback";
+        : localTarget.source;
   const bindDetail = !urlOverride && !remoteUrl ? `Bind: ${bindMode}` : undefined;
   const remoteFallbackNote = remoteMisconfigured
     ? "Warn: gateway.mode=remote but gateway.remote.url is missing; set gateway.remote.url or switch gateway.mode=local."

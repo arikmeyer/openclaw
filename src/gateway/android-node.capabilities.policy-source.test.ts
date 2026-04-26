@@ -12,8 +12,9 @@ function details(overrides: Partial<GatewayConnectionDetails>): GatewayConnectio
 }
 
 describe("shouldFetchRemotePolicyConfig", () => {
-  it("returns false for local loopback config", () => {
+  it("returns false for local gateway config", () => {
     expect(shouldFetchRemotePolicyConfig(details({ urlSource: "local loopback" }))).toBe(false);
+    expect(shouldFetchRemotePolicyConfig(details({ urlSource: "local tailnet" }))).toBe(false);
   });
 
   it("returns true for config-driven remote urls even if loopback-tunneled", () => {

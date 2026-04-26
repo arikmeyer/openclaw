@@ -7,6 +7,7 @@ import {
 } from "../config/paths.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { loadOrCreateDeviceIdentity, type DeviceIdentity } from "../infra/device-identity.js";
+import { pickPrimaryTailnetIPv4 } from "../infra/tailnet.js";
 import { loadGatewayTlsRuntime } from "../infra/tls/gateway.js";
 import { normalizeOptionalString } from "../shared/string-coerce.js";
 import {
@@ -160,6 +161,7 @@ export function buildGatewayConnectionDetails(
     loadConfig: () => loadGatewayConfig(),
     resolveConfigPath: (env) => resolveGatewayConfigPath(env),
     resolveGatewayPort: (config, env) => resolveGatewayPortValue(config, env),
+    pickPrimaryTailnetIPv4,
   });
 }
 
