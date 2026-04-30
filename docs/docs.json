@@ -1595,6 +1595,7 @@
                       "cli/memory",
                       "cli/commitments",
                       "cli/message",
+                      "cli/display",
                       "cli/models",
                       "cli/sessions",
                       "cli/system",

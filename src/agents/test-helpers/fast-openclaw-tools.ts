@@ -19,6 +19,7 @@ function stubActionTool(name: string, actions: string[]) {
 
 const coreTools = [
   stubActionTool("canvas", ["create", "read"]),
+  stubTool("display"),
   stubActionTool("nodes", ["list", "invoke"]),
   stubActionTool("cron", ["schedule", "cancel"]),
   stubActionTool("message", ["send", "reply"]),
