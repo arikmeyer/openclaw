@@ -1,5 +1,6 @@
 import {
   CRON_TOOL_DISPLAY_SUMMARY,
+  DISPLAY_TOOL_DISPLAY_SUMMARY,
   EXEC_TOOL_DISPLAY_SUMMARY,
   PROCESS_TOOL_DISPLAY_SUMMARY,
   SESSIONS_HISTORY_TOOL_DISPLAY_SUMMARY,
@@ -211,6 +212,14 @@ const CORE_TOOL_DEFINITIONS: CoreToolDefinition[] = [
     description: "Control canvases",
     sectionId: "ui",
     profiles: [],
+    includeInOpenClawGroup: true,
+  },
+  {
+    id: "display",
+    label: "display",
+    description: DISPLAY_TOOL_DISPLAY_SUMMARY,
+    sectionId: "ui",
+    profiles: ["coding", "messaging"],
     includeInOpenClawGroup: true,
   },
   {

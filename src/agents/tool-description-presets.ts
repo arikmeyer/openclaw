@@ -10,6 +10,8 @@ export const SESSIONS_SPAWN_TOOL_DISPLAY_SUMMARY = "Spawn sub-agent or ACP sessi
 export const SESSIONS_SPAWN_SUBAGENT_TOOL_DISPLAY_SUMMARY = "Spawn sub-agent sessions.";
 export const SESSION_STATUS_TOOL_DISPLAY_SUMMARY = "Show session status, usage, and model state.";
 export const UPDATE_PLAN_TOOL_DISPLAY_SUMMARY = "Track a short structured work plan.";
+export const DISPLAY_TOOL_DISPLAY_SUMMARY =
+  "Render source-neutral rich displays for Canvas or Telegram.";
 
 export function describeSessionsListTool(): string {
   return [

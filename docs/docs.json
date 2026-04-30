@@ -1591,6 +1591,7 @@
                       "cli/infer",
                       "cli/memory",
                       "cli/message",
+                      "cli/display",
                       "cli/models",
                       "cli/sessions",
                       "cli/system",

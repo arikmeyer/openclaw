@@ -129,6 +129,15 @@ describe("createOpenClawCodingTools", () => {
     }
   });
 
+  it("keeps rich display available in the coding profile", () => {
+    const tools = createOpenClawCodingTools({
+      config: { tools: { profile: "coding" } },
+      senderIsOwner: true,
+    });
+
+    expect(tools.some((tool) => tool.name === "display")).toBe(true);
+  });
+
   it("enforces apply_patch availability and canonical names across model/provider constraints", () => {
     const defaultTools = createOpenClawCodingTools({ config: testConfig, senderIsOwner: true });
     expect(defaultTools.some((tool) => tool.name === "exec")).toBe(true);
