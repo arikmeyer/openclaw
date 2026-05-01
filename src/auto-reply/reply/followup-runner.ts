@@ -24,7 +24,6 @@ import type { GetReplyOptions, ReplyPayload } from "../types.js";
 import { runPreflightCompactionIfNeeded } from "./agent-runner-memory.js";
 import {
   resolveQueuedReplyExecutionConfig,
-  resolveQueuedReplyRuntimeConfig,
   resolveModelFallbackOptions,
   resolveRunAuthProfile,
 } from "./agent-runner-utils.js";
@@ -82,7 +81,7 @@ export function createFollowupRunner(params: {
   ) => {
     // Check if we should route to originating channel.
     const { originatingChannel, originatingTo } = queued;
-    const runtimeConfig = resolveQueuedReplyRuntimeConfig(queued.run.config);
+    const runtimeConfig = queued.run.config;
     const shouldRouteToOriginating = isRoutableChannel(originatingChannel) && originatingTo;
     const deliveryPlan = buildAgentRuntimeDeliveryPlan({
       provider: resolvedRun.provider,
@@ -209,11 +208,8 @@ export function createFollowupRunner(params: {
       agentAccountId: queued.run.agentAccountId,
     });
     const replySessionKey = queued.run.sessionKey ?? sessionKey;
-    const runtimeConfig = resolveQueuedReplyRuntimeConfig(queued.run.config);
-    const effectiveQueued =
-      runtimeConfig === queued.run.config
-        ? queued
-        : { ...queued, run: { ...queued.run, config: runtimeConfig } };
+    const runtimeConfig = queued.run.config;
+    const effectiveQueued = queued;
     const run = effectiveQueued.run;
     const replyOperation = createReplyOperation({
       sessionId: run.sessionId,

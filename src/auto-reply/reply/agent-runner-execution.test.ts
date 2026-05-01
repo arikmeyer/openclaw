@@ -596,10 +596,10 @@ describe("runAgentTurnWithFallback", () => {
         },
       },
     };
-    followupRun.run.messageProvider = "telegram";
+    followupRun.run.messageProvider = "stale-provider";
     followupRun.run.agentAccountId = "default";
     followupRun.run.config = sourceConfig;
-    followupRun.originatingAccountId = "default";
+    followupRun.originatingAccountId = undefined;
     state.resolveQueuedReplyExecutionConfigMock.mockResolvedValueOnce(resolvedConfig);
     state.runEmbeddedPiAgentMock.mockResolvedValueOnce({
       payloads: [{ text: "reply" }],
@@ -611,7 +611,6 @@ describe("runAgentTurnWithFallback", () => {
         followupRun,
         sessionCtx: {
           Provider: "telegram",
-          OriginatingChannel: "telegram",
           AccountId: "default",
           MessageSid: "msg",
         } as unknown as TemplateContext,
@@ -620,7 +619,7 @@ describe("runAgentTurnWithFallback", () => {
 
     expect(result.kind).toBe("success");
     expect(state.resolveQueuedReplyExecutionConfigMock).toHaveBeenCalledWith(sourceConfig, {
-      originatingChannel: "telegram",
+      originatingChannel: undefined,
       messageProvider: "telegram",
       originatingAccountId: "default",
       agentAccountId: "default",
