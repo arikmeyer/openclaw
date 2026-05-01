@@ -25,11 +25,18 @@ const configIoMocks = vi.hoisted(() => ({
   loadConfig: vi.fn(),
   readConfigFileSnapshotForWrite: vi.fn(),
 }));
+const commandConfigResolutionMocks = vi.hoisted(() => ({
+  resolveCommandConfigWithSecrets: vi.fn(),
+}));
 
 vi.mock("../config/io.js", () => ({
   getRuntimeConfig: configIoMocks.loadConfig,
   loadConfig: configIoMocks.loadConfig,
   readConfigFileSnapshotForWrite: configIoMocks.readConfigFileSnapshotForWrite,
+}));
+
+vi.mock("../cli/command-config-resolution.runtime.js", () => ({
+  resolveCommandConfigWithSecrets: commandConfigResolutionMocks.resolveCommandConfigWithSecrets,
 }));
 
 vi.mock("../agents/auth-profiles/store.js", () => {
@@ -314,6 +321,11 @@ beforeEach(() => {
     snapshot: { valid: false, resolved: {} as OpenClawConfig },
     writeOptions: {},
   });
+  commandConfigResolutionMocks.resolveCommandConfigWithSecrets.mockImplementation(
+    async ({ config }: { config: OpenClawConfig }) => ({
+      resolvedConfig: config,
+    }),
+  );
 });
 
 describe("agentCommand", () => {
@@ -334,6 +346,53 @@ describe("agentCommand", () => {
         runtime,
       ),
     ).rejects.toThrow("allowModelOverride must be explicitly set for ingress agent runs.");
+  });
+
+  it("resolves channel SecretRefs for ingress channel-context runs before embedded execution", async () => {
+    await withTempHome(async (home) => {
+      const store = path.join(home, "sessions.json");
+      mockConfig(home, store, undefined, {
+        botToken: { source: "file", provider: "host_bundle", id: "OPENCLAW_TELEGRAM_BOT_TOKEN" },
+      } as never);
+      commandConfigResolutionMocks.resolveCommandConfigWithSecrets.mockResolvedValueOnce({
+        resolvedConfig: {
+          ...configIoMocks.loadConfig(),
+          channels: {
+            telegram: {
+              botToken: "resolved-telegram-token",
+            },
+          },
+        },
+      });
+
+      await agentCommandFromIngress(
+        {
+          message: "hi",
+          sessionKey: "agent:main:direct:telegram-secret",
+          messageChannel: "telegram",
+          senderIsOwner: true,
+          allowModelOverride: false,
+        },
+        runtime,
+      );
+
+      const secretResolutionCall =
+        commandConfigResolutionMocks.resolveCommandConfigWithSecrets.mock.calls.at(-1)?.[0];
+      expect(secretResolutionCall).toEqual(
+        expect.objectContaining({
+          commandName: "agent",
+          targetIds: expect.any(Set),
+        }),
+      );
+      expect(
+        [...((secretResolutionCall?.targetIds as Set<string> | undefined) ?? new Set())].some(
+          (targetId) => targetId.startsWith("channels."),
+        ),
+      ).toBe(true);
+      expect(getLastEmbeddedCall()?.config?.channels?.telegram?.botToken).toBe(
+        "resolved-telegram-token",
+      );
+    });
   });
 
   it("persists local overrides", async () => {

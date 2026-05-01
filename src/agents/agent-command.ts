@@ -26,7 +26,7 @@ import { resolveSendPolicy } from "../sessions/send-policy.js";
 import { normalizeOptionalString } from "../shared/string-coerce.js";
 import { sanitizeForLog } from "../terminal/ansi.js";
 import { createTrajectoryRuntimeRecorder } from "../trajectory/runtime.js";
-import { resolveMessageChannel } from "../utils/message-channel.js";
+import { isDeliverableMessageChannel, resolveMessageChannel } from "../utils/message-channel.js";
 import { resolveAgentRuntimeConfig } from "./agent-runtime-config.js";
 import {
   listAgentIds,
@@ -265,8 +265,14 @@ async function prepareAgentCommandExecution(
     throw new Error("Pass --to <E.164>, --session-id, or --agent to choose a session");
   }
 
+  const runtimeMessageChannel = resolveMessageChannel(
+    opts.runContext?.messageChannel ?? opts.messageChannel,
+    opts.messageChannel ?? opts.channel,
+  );
   const { cfg } = await resolveAgentRuntimeConfig(runtime, {
-    runtimeTargetsChannelSecrets: opts.deliver === true,
+    runtimeTargetsChannelSecrets:
+      opts.deliver === true ||
+      (runtimeMessageChannel ? isDeliverableMessageChannel(runtimeMessageChannel) : false),
   });
   const normalizedSpawned = normalizeSpawnedRunMetadata({
     spawnedBy: opts.spawnedBy,
