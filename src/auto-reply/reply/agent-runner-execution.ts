@@ -72,6 +72,7 @@ import type { GetReplyOptions, ReplyPayload } from "../types.js";
 import { resolveRunAuthProfile } from "./agent-runner-auth-profile.js";
 import {
   buildEmbeddedRunExecutionParams,
+  resolveQueuedReplyExecutionConfig,
   resolveQueuedReplyRuntimeConfig,
   resolveModelFallbackOptions,
 } from "./agent-runner-utils.js";
@@ -905,7 +906,13 @@ export async function runAgentTurnWithFallback(params: {
   let autoCompactionCount = 0;
   // Track payloads sent directly (not via pipeline) during tool flush to avoid duplicates.
   const directlySentBlockKeys = new Set<string>();
-  const runtimeConfig = resolveQueuedReplyRuntimeConfig(params.followupRun.run.config);
+  const executionConfig = await resolveQueuedReplyExecutionConfig(params.followupRun.run.config, {
+    originatingChannel: params.sessionCtx.OriginatingChannel,
+    messageProvider: params.followupRun.run.messageProvider,
+    originatingAccountId: params.followupRun.originatingAccountId,
+    agentAccountId: params.followupRun.run.agentAccountId,
+  });
+  const runtimeConfig = resolveQueuedReplyRuntimeConfig(executionConfig);
   const effectiveRun =
     runtimeConfig === params.followupRun.run.config
       ? params.followupRun.run
