@@ -338,6 +338,25 @@ describe("callGateway url resolution", () => {
     expect(lastClientOptions?.url).toBe(expectedUrl);
   });
 
+  it("uses configured remote URL for a local tailnet-bound gateway", async () => {
+    getRuntimeConfig.mockReturnValue({
+      gateway: {
+        mode: "local",
+        bind: "tailnet",
+        tls: { enabled: true },
+        auth: { token: "local-token" },
+        remote: { url: "wss://100.64.0.9:18789" },
+      },
+    });
+    resolveGatewayPort.mockReturnValue(18789);
+    pickPrimaryTailnetIPv4.mockReturnValue("100.64.0.9");
+
+    await callGateway({ method: "health" });
+
+    expect(lastClientOptions?.url).toBe("wss://100.64.0.9:18789");
+    expect(lastClientOptions?.token).toBe("local-token");
+  });
+
   it("uses url override in remote mode even when remote url is missing", async () => {
     getRuntimeConfig.mockReturnValue({
       gateway: { mode: "remote", bind: "loopback", remote: {} },
@@ -708,7 +727,7 @@ describe("buildGatewayConnectionDetails", () => {
     expect(details.bindDetail).toBe("Bind: lan");
   });
 
-  it("prefers remote url when configured", () => {
+  it("prefers remote url when configured in remote mode", () => {
     getRuntimeConfig.mockReturnValue({
       gateway: {
         mode: "remote",
@@ -722,6 +741,26 @@ describe("buildGatewayConnectionDetails", () => {
     const details = buildGatewayConnectionDetails();
 
     expect(details.url).toBe("wss://remote.example.com/ws");
+    expect(details.urlSource).toBe("config gateway.remote.url");
+    expect(details.bindDetail).toBeUndefined();
+    expect(details.remoteFallbackNote).toBeUndefined();
+  });
+
+  it("prefers configured remote url for local tailnet-bound gateways", () => {
+    getRuntimeConfig.mockReturnValue({
+      gateway: {
+        mode: "local",
+        bind: "tailnet",
+        tls: { enabled: true },
+        remote: { url: "wss://100.64.0.9:18789" },
+      },
+    });
+    resolveGatewayPort.mockReturnValue(18800);
+    pickPrimaryTailnetIPv4.mockReturnValue("100.64.0.9");
+
+    const details = buildGatewayConnectionDetails();
+
+    expect(details.url).toBe("wss://100.64.0.9:18789");
     expect(details.urlSource).toBe("config gateway.remote.url");
     expect(details.bindDetail).toBeUndefined();
     expect(details.remoteFallbackNote).toBeUndefined();

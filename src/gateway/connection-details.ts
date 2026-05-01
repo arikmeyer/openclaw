@@ -32,19 +32,23 @@ export function buildGatewayConnectionDetailsWithResolvers(
     resolvers.resolveConfigPath?.(process.env) ??
     resolveConfigPath(process.env);
   const isRemoteMode = config.gateway?.mode === "remote";
-  const remote = isRemoteMode ? config.gateway?.remote : undefined;
   const tlsEnabled = config.gateway?.tls?.enabled === true;
   const localPort =
     resolvers.resolveGatewayPort?.(config, process.env) ?? resolveGatewayPort(config);
   const bindMode = config.gateway?.bind ?? "loopback";
   const scheme = tlsEnabled ? "wss" : "ws";
   const localUrl = `${scheme}://127.0.0.1:${localPort}`;
+  const configuredRemote = config.gateway?.remote;
+  const configuredRemoteUrl = normalizeOptionalString(configuredRemote?.url);
+  const shouldUseConfiguredRemoteUrl =
+    isRemoteMode || (bindMode === "tailnet" && Boolean(configuredRemoteUrl));
+  const remote = shouldUseConfiguredRemoteUrl ? configuredRemote : undefined;
   const cliUrlOverride = normalizeOptionalString(options.url);
   const envUrlOverride = cliUrlOverride
     ? undefined
     : normalizeOptionalString(process.env.OPENCLAW_GATEWAY_URL);
   const urlOverride = cliUrlOverride ?? envUrlOverride;
-  const remoteUrl = normalizeOptionalString(remote?.url);
+  const remoteUrl = shouldUseConfiguredRemoteUrl ? configuredRemoteUrl : undefined;
   const remoteMisconfigured = isRemoteMode && !urlOverride && !remoteUrl;
   const urlSourceHint =
     options.urlSource ?? (cliUrlOverride ? "cli" : envUrlOverride ? "env" : undefined);
