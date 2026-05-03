@@ -31,7 +31,13 @@ function splitGraphemes(value: string): string[] {
 }
 
 const hasJsonFlag = (argv: string[]) =>
-  argv.some((arg) => arg === "--json" || arg.startsWith("--json="));
+  argv.some(
+    (arg) =>
+      arg === "--json" ||
+      arg.startsWith("--json=") ||
+      arg === "--stream-json" ||
+      arg.startsWith("--stream-json="),
+  );
 
 const hasVersionFlag = (argv: string[]) =>
   argv.some((arg) => arg === "--version" || arg === "-V") || hasRootVersionAlias(argv);

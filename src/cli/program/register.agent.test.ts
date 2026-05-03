@@ -95,6 +95,20 @@ describe("registerAgentCommands", () => {
     );
   });
 
+  it("passes stream-json through to the agent command", async () => {
+    await runCli(["agent", "--message", "hi", "--local", "--stream-json"]);
+
+    expect(agentCliCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "hi",
+        local: true,
+        streamJson: true,
+      }),
+      runtime,
+      { deps: true },
+    );
+  });
+
   it("runs agent command with verbose disabled for --verbose off", async () => {
     await runCli(["agent", "--message", "hi", "--verbose", "off"]);
 

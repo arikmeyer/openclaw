@@ -16,7 +16,7 @@ async function prepareRoutedCommand(params: {
 }) {
   const { startupPolicy } = resolveCliExecutionStartupContext({
     argv: params.argv,
-    jsonOutputMode: hasFlag(params.argv, "--json"),
+    jsonOutputMode: hasFlag(params.argv, "--json") || hasFlag(params.argv, "--stream-json"),
     env: process.env,
     routeMode: true,
   });

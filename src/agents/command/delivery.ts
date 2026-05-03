@@ -267,7 +267,20 @@ export async function deliverAgentCommandResult(params: {
     applyChannelTransforms: deliver,
   });
   const normalizedPayloads = normalizeOutboundPayloadsForJson(normalizedReplyPayloads);
-  if (opts.json) {
+  if (opts.streamJson) {
+    process.stdout.write(
+      `${JSON.stringify({
+        type: "result",
+        ...buildOutboundResultEnvelope({
+          payloads: normalizedPayloads,
+          meta: result.meta,
+        }),
+      })}\n`,
+    );
+    if (!deliver) {
+      return { payloads: normalizedPayloads, meta: result.meta };
+    }
+  } else if (opts.json) {
     runtime.log(
       JSON.stringify(
         buildOutboundResultEnvelope({
@@ -290,7 +303,7 @@ export async function deliverAgentCommandResult(params: {
 
   const deliveryPayloads = normalizeOutboundPayloads(normalizedReplyPayloads);
   const logPayload = (payload: NormalizedOutboundPayload) => {
-    if (opts.json) {
+    if (opts.json || opts.streamJson) {
       return;
     }
     const output = formatOutboundPayloadLog(payload);

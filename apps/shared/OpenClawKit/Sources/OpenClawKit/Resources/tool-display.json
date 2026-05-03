@@ -232,6 +232,17 @@
         }
       }
     },
+    "display": {
+      "emoji": "🖼️",
+      "title": "Display",
+      "detailKeys": [
+        "target",
+        "title",
+        "node",
+        "nodeId",
+        "to"
+      ]
+    },
     "nodes": {
       "emoji": "📱",
       "title": "Nodes",

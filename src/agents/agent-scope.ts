@@ -44,6 +44,7 @@ type ResolvedAgentConfig = {
   workspace?: string;
   agentDir?: string;
   systemPromptOverride?: AgentEntry["systemPromptOverride"];
+  runtime?: AgentEntry["runtime"];
   model?: AgentEntry["model"];
   thinkingDefault?: AgentEntry["thinkingDefault"];
   verboseDefault?: AgentDefaultsConfig["verboseDefault"];
@@ -67,7 +68,7 @@ export function listAgentEntries(cfg: OpenClawConfig): AgentEntry[] {
   if (!Array.isArray(list)) {
     return [];
   }
-  return list.filter((entry): entry is AgentEntry => Boolean(entry && typeof entry === "object"));
+  return list.filter((entry): entry is AgentEntry => entry !== null && typeof entry === "object");
 }
 
 export function listAgentIds(cfg: OpenClawConfig): string[] {
@@ -148,6 +149,7 @@ export function resolveAgentConfig(
     workspace: readStringValue(entry.workspace),
     agentDir: readStringValue(entry.agentDir),
     systemPromptOverride: readStringValue(entry.systemPromptOverride),
+    runtime: entry.runtime,
     model:
       typeof entry.model === "string" || (entry.model && typeof entry.model === "object")
         ? entry.model

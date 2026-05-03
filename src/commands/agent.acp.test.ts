@@ -41,6 +41,7 @@ function createAcpEnabledConfig(home: string, storePath: string): OpenClawConfig
         model: { primary: "openai/gpt-5.4" },
         models: { "openai/gpt-5.4": {} },
         workspace: path.join(home, "openclaw"),
+        skipBootstrap: true,
       },
     },
     session: { store: storePath, mainKey: "main" },
@@ -110,12 +111,16 @@ function resolveReadySession(
 
 function mockAcpManager(params: {
   runTurn: (params: unknown) => Promise<void>;
+  initializeSession?: (params: unknown) => Promise<void>;
+  closeSession?: (params: unknown) => Promise<void>;
   resolveSession?: (params: {
     cfg: OpenClawConfig;
     sessionKey: string;
   }) => ReturnType<ReturnType<typeof acpManagerModule.getAcpSessionManager>["resolveSession"]>;
 }) {
   getAcpSessionManagerSpy.mockReturnValue({
+    initializeSession: params.initializeSession ?? vi.fn(async () => {}),
+    closeSession: params.closeSession ?? vi.fn(async () => {}),
     runTurn: params.runTurn,
     resolveSession:
       params.resolveSession ??
@@ -278,6 +283,69 @@ describe("agentCommand ACP runtime routing", () => {
         .mocked(runtime.log)
         .mock.calls.some(([first]) => typeof first === "string" && first.includes("ACP_OK"));
       expect(hasAckLog).toBe(true);
+    });
+  });
+
+  it("initializes ACP metadata from the selected agent runtime before routing", async () => {
+    await withTempHome(async (home) => {
+      const storePath = path.join(home, "sessions.json");
+      const workspace = path.join(home, "openclaw-repo");
+      const cfg = createAcpEnabledConfig(home, storePath);
+      cfg.agents = {
+        ...cfg.agents,
+        list: [
+          { id: "main" },
+          {
+            id: "openclaw-maintainer",
+            workspace,
+            runtime: {
+              type: "acp",
+              acp: {
+                agent: "codex",
+                backend: "acpx",
+                mode: "persistent",
+              },
+            },
+          },
+        ],
+      };
+      loadConfigSpy.mockReturnValue(cfg);
+
+      let initialized = false;
+      const initializeSession = vi.fn(async (_params: unknown) => {
+        initialized = true;
+      });
+      const runTurn = createRunTurnFromTextDeltas(["ACP_OK"]);
+      mockAcpManager({
+        initializeSession: (params: unknown) => initializeSession(params),
+        runTurn: (params: unknown) => runTurn(params),
+        resolveSession: ({ sessionKey }) => {
+          if (!initialized) {
+            return { kind: "none", sessionKey };
+          }
+          return resolveReadySession(sessionKey, "codex");
+        },
+      });
+
+      await agentCommand({ message: "ping", agentId: "openclaw-maintainer" }, runtime);
+
+      expect(initializeSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionKey: "agent:openclaw-maintainer:main",
+          agent: "codex",
+          backendId: "acpx",
+          mode: "persistent",
+          cwd: workspace,
+        }),
+      );
+      expect(runTurn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionKey: "agent:openclaw-maintainer:main",
+          text: "ping",
+          mode: "prompt",
+        }),
+      );
+      expect(runEmbeddedPiAgentSpy).not.toHaveBeenCalled();
     });
   });
 

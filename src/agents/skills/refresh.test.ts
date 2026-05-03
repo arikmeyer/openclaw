@@ -1,8 +1,11 @@
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RuntimeIntegrationSkillDir } from "../../runtime-integrations.js";
 
-const resolveActiveRuntimeIntegrationSkillDirsMock = vi.hoisted(() => vi.fn(() => []));
+const resolveActiveRuntimeIntegrationSkillDirsMock = vi.hoisted(() =>
+  vi.fn<() => RuntimeIntegrationSkillDir[]>(() => []),
+);
 const watchMock = vi.fn(() => ({
   on: vi.fn(),
   close: vi.fn(async () => undefined),

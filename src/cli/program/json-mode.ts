@@ -27,15 +27,15 @@ function getDeclaredCommandJsonMode(command: Command): JsonMode | null {
 
 function commandSelectedJsonFlag(command: Command, argv: string[]): boolean {
   const commandWithGlobals = command as Command & {
-    optsWithGlobals?: <T extends Record<string, unknown>>() => T;
+    optsWithGlobals?: () => Record<string, unknown>;
   };
   if (typeof commandWithGlobals.optsWithGlobals === "function") {
-    const resolved = commandWithGlobals.optsWithGlobals<Record<string, unknown>>().json;
-    if (resolved === true) {
+    const resolved = commandWithGlobals.optsWithGlobals();
+    if (resolved.json === true || resolved.streamJson === true) {
       return true;
     }
   }
-  return hasFlag(argv, "--json");
+  return hasFlag(argv, "--json") || hasFlag(argv, "--stream-json");
 }
 
 export function setCommandJsonMode(command: Command, mode: JsonMode): Command {

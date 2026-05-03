@@ -609,6 +609,80 @@ describe("agentCommand", () => {
     });
   });
 
+  it("streams public agent events as JSON lines when requested", async () => {
+    await withTempHome(async (home) => {
+      const store = path.join(home, "sessions.json");
+      mockConfig(home, store);
+
+      vi.mocked(runEmbeddedPiAgent).mockImplementationOnce(async (params) => {
+        const runId = (params as { runId?: string }).runId ?? "run";
+        emitAgentEvent({
+          runId,
+          stream: "item",
+          data: {
+            itemId: "cmd-1",
+            phase: "start",
+            kind: "command",
+            title: "Run tests",
+            status: "running",
+            name: "exec",
+          },
+        });
+        emitAgentEvent({
+          runId,
+          stream: "command_output",
+          data: {
+            itemId: "cmd-1",
+            phase: "end",
+            title: "Run tests",
+            toolCallId: "tool-1",
+            name: "exec",
+            output: "tests passed",
+            status: "completed",
+          },
+        });
+        emitAgentEvent({
+          runId,
+          stream: "assistant",
+          data: { text: "Done", delta: "Done" },
+        });
+        return createDefaultAgentResult({
+          payloads: [{ text: "final reply" }],
+          durationMs: 42,
+        });
+      });
+
+      const stdoutWrite = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+      let stdoutLines: string[] = [];
+      try {
+        await agentCommand({ message: "hi", to: "+1999", streamJson: true }, runtime);
+        stdoutLines = stdoutWrite.mock.calls.map((call) => String(call[0]));
+      } finally {
+        stdoutWrite.mockRestore();
+      }
+
+      const lines = stdoutLines.map(
+        (line) => JSON.parse(line) as { type: string; content?: string; output?: string },
+      );
+
+      expect(lines.map((line) => line.type)).toEqual([
+        "tool_use",
+        "tool_result",
+        "text",
+        "step_finish",
+        "result",
+      ]);
+      expect(lines[0]).toMatchObject({ type: "tool_use", content: "Run tests" });
+      expect(lines[1]).toMatchObject({ type: "tool_result", output: "tests passed" });
+      expect(lines[2]).toMatchObject({ type: "text", content: "Done" });
+      expect(lines[4]).toMatchObject({
+        type: "result",
+        payloads: [{ text: "final reply" }],
+        meta: { durationMs: 42 },
+      });
+    });
+  });
+
   it("uses provider/model from agents.defaults.model.primary", async () => {
     await withTempHome(async (home) => {
       const store = path.join(home, "sessions.json");

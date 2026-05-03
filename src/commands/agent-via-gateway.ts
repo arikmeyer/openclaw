@@ -42,6 +42,7 @@ export type AgentCliOpts = {
   thinking?: string;
   verbose?: string;
   json?: boolean;
+  streamJson?: boolean;
   timeout?: string;
   deliver?: boolean;
   channel?: string;
@@ -58,7 +59,7 @@ export type AgentCliOpts = {
 function parseTimeoutSeconds(opts: { cfg: ReturnType<typeof loadConfig>; timeout?: string }) {
   const raw =
     opts.timeout !== undefined
-      ? Number.parseInt(String(opts.timeout), 10)
+      ? Number.parseInt(opts.timeout, 10)
       : (opts.cfg.agents?.defaults?.timeoutSeconds ?? 600);
   if (Number.isNaN(raw) || raw < 0) {
     throw new Error("--timeout must be a non-negative integer (seconds; 0 means no timeout)");
@@ -165,7 +166,7 @@ export async function agentViaGatewayCommand(opts: AgentCliOpts, runtime: Runtim
   const payloads = result?.payloads ?? [];
 
   if (payloads.length === 0) {
-    runtime.log(response?.summary ? String(response.summary) : "No reply from agent.");
+    runtime.log(response?.summary ? response.summary : "No reply from agent.");
     return response;
   }
 
@@ -188,6 +189,9 @@ export async function agentCliCommand(opts: AgentCliOpts, runtime: RuntimeEnv, d
   };
   if (opts.local === true) {
     return await agentCommand(localOpts, runtime, deps);
+  }
+  if (opts.streamJson === true) {
+    throw new Error("--stream-json requires --local");
   }
 
   try {

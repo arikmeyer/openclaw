@@ -22,6 +22,7 @@ import {
 } from "../config/config.js";
 import { resolveAgentIdFromSessionKey, type SessionEntry } from "../config/sessions.js";
 import { resolveSessionTranscriptFile } from "../config/sessions/transcript.js";
+import type { SessionAcpMeta } from "../config/sessions/types.js";
 import {
   clearAgentRunContext,
   emitAgentEvent,
@@ -41,6 +42,7 @@ import { sanitizeForLog } from "../terminal/ansi.js";
 import { resolveMessageChannel } from "../utils/message-channel.js";
 import {
   listAgentIds,
+  resolveAgentConfig,
   resolveAgentDir,
   resolveEffectiveModelFallbacks,
   resolveSessionAgentId,
@@ -66,10 +68,10 @@ import { deliverAgentCommandResult } from "./command/delivery.js";
 import { resolveAgentRunContext } from "./command/run-context.js";
 import { updateSessionStoreAfterAgentRun } from "./command/session-store.js";
 import { resolveSession } from "./command/session.js";
+import { startAgentCommandStreamJson } from "./command/stream-json.js";
 import type { AgentCommandIngressOpts, AgentCommandOpts } from "./command/types.js";
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "./defaults.js";
 import { canExecRequestNode } from "./exec-defaults.js";
-import { AGENT_LANE_SUBAGENT } from "./lanes.js";
 import { LiveSessionModelSwitchError } from "./live-model-switch.js";
 import { loadModelCatalog } from "./model-catalog.js";
 import { runWithModelFallback } from "./model-fallback.js";
@@ -123,6 +125,13 @@ const OVERRIDE_FIELDS_CLEARED_BY_DELETE: OverrideFieldClearedByDelete[] = [
 
 const OVERRIDE_VALUE_MAX_LENGTH = 256;
 
+type AgentAcpRuntimeSelection = {
+  agent: string;
+  backendId?: string;
+  mode: "persistent" | "oneshot";
+  cwd: string;
+};
+
 async function persistSessionEntry(params: PersistSessionEntryParams): Promise<void> {
   await persistSessionEntryBase({
     ...params,
@@ -160,6 +169,50 @@ async function resolveAgentRuntimeConfig(
   });
   setRuntimeConfigSnapshot(cfg, sourceConfig);
   return { loadedRaw, sourceConfig, cfg };
+}
+
+function resolveAgentAcpRuntimeSelection(params: {
+  cfg: OpenClawConfig;
+  agentId: string;
+  workspaceDir: string;
+}): AgentAcpRuntimeSelection | null {
+  const runtime = resolveAgentConfig(params.cfg, params.agentId)?.runtime;
+  if (runtime?.type !== "acp") {
+    return null;
+  }
+
+  const acp = runtime.acp ?? {};
+  return {
+    agent:
+      normalizeOptionalString(acp.agent) ??
+      normalizeOptionalString(params.cfg.acp?.defaultAgent) ??
+      params.agentId,
+    backendId: normalizeOptionalString(acp.backend),
+    mode: acp.mode === "oneshot" ? "oneshot" : "persistent",
+    cwd: normalizeOptionalString(acp.cwd) ?? params.workspaceDir,
+  };
+}
+
+function acpSessionMatchesAgentRuntime(params: {
+  cfg: OpenClawConfig;
+  meta: SessionAcpMeta;
+  selection: AgentAcpRuntimeSelection;
+}): boolean {
+  if (params.meta.state === "error") {
+    return false;
+  }
+  if (normalizeAgentId(params.meta.agent) !== normalizeAgentId(params.selection.agent)) {
+    return false;
+  }
+  if (params.meta.mode !== params.selection.mode) {
+    return false;
+  }
+  const desiredBackend =
+    params.selection.backendId ?? normalizeOptionalString(params.cfg.acp?.backend);
+  if (desiredBackend && params.meta.backend !== desiredBackend) {
+    return false;
+  }
+  return resolveAcpSessionCwd(params.meta) === params.selection.cwd;
 }
 
 function containsControlCharacters(value: string): boolean {
@@ -254,13 +307,9 @@ async function prepareAgentCommandExecution(
   }
 
   const laneRaw = normalizeOptionalString(opts.lane) ?? "";
-  const isSubagentLane = laneRaw === String(AGENT_LANE_SUBAGENT);
+  const isSubagentLane = laneRaw === "subagent";
   const timeoutSecondsRaw =
-    opts.timeout !== undefined
-      ? Number.parseInt(String(opts.timeout), 10)
-      : isSubagentLane
-        ? 0
-        : undefined;
+    opts.timeout !== undefined ? Number.parseInt(opts.timeout, 10) : isSubagentLane ? 0 : undefined;
   if (
     timeoutSecondsRaw !== undefined &&
     (Number.isNaN(timeoutSecondsRaw) || timeoutSecondsRaw < 0)
@@ -312,6 +361,55 @@ async function prepareAgentCommandExecution(
   const workspaceDir = workspace.dir;
   const runId = opts.runId?.trim() || sessionId;
   const acpManager = getAcpSessionManager();
+  const agentAcpRuntime = resolveAgentAcpRuntimeSelection({
+    cfg,
+    agentId: sessionAgentId,
+    workspaceDir,
+  });
+  if (sessionKey && agentAcpRuntime) {
+    const currentAcpResolution = acpManager.resolveSession({
+      cfg,
+      sessionKey,
+    });
+    const shouldInitializeAcpSession =
+      currentAcpResolution.kind !== "ready" ||
+      !acpSessionMatchesAgentRuntime({
+        cfg,
+        meta: currentAcpResolution.meta,
+        selection: agentAcpRuntime,
+      });
+    if (shouldInitializeAcpSession) {
+      const dispatchPolicyError = resolveAcpDispatchPolicyError(cfg);
+      if (dispatchPolicyError) {
+        throw dispatchPolicyError;
+      }
+      const agentPolicyError = resolveAcpAgentPolicyError(
+        cfg,
+        normalizeAgentId(agentAcpRuntime.agent),
+      );
+      if (agentPolicyError) {
+        throw agentPolicyError;
+      }
+      if (currentAcpResolution.kind !== "none") {
+        await acpManager.closeSession({
+          cfg,
+          sessionKey,
+          reason: "agent-runtime-reconfigure",
+          clearMeta: false,
+          allowBackendUnavailable: true,
+          requireAcpSession: false,
+        });
+      }
+      await acpManager.initializeSession({
+        cfg,
+        sessionKey,
+        agent: agentAcpRuntime.agent,
+        mode: agentAcpRuntime.mode,
+        cwd: agentAcpRuntime.cwd,
+        backendId: agentAcpRuntime.backendId,
+      });
+    }
+  }
   const acpResolution = sessionKey
     ? acpManager.resolveSession({
         cfg,
@@ -377,6 +475,11 @@ async function agentCommandInternal(
     acpResolution,
   } = prepared;
   let sessionEntry = prepared.sessionEntry;
+  const stopStreamJson = opts.streamJson
+    ? startAgentCommandStreamJson({
+        runId,
+      })
+    : undefined;
 
   try {
     if (opts.deliver === true) {
@@ -975,6 +1078,7 @@ async function agentCommandInternal(
       payloads,
     });
   } finally {
+    stopStreamJson?.();
     clearAgentRunContext(runId);
   }
 }

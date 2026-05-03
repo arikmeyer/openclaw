@@ -53,6 +53,8 @@ export type AgentCommandOpts = {
   thinkingOnce?: string;
   verbose?: string;
   json?: boolean;
+  /** Emit public agent progress events as newline-delimited JSON, followed by the final result. */
+  streamJson?: boolean;
   timeout?: string;
   deliver?: boolean;
   /** Override delivery target (separate from session routing). */

@@ -169,6 +169,11 @@ export const TOOL_DISPLAY_CONFIG: ToolDisplayConfig = {
         },
       },
     },
+    display: {
+      emoji: "🖼️",
+      title: "Display",
+      detailKeys: ["target", "title", "node", "nodeId", "to"],
+    },
     nodes: {
       emoji: "📱",
       title: "Nodes",

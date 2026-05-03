@@ -2,12 +2,15 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { RuntimeIntegrationSkillDir } from "../runtime-integrations.js";
 import { writeSkill } from "./skills.e2e-test-helpers.js";
 import { loadWorkspaceSkillEntries } from "./skills.js";
 import { readSkillFrontmatterSafe } from "./skills/local-loader.js";
 import { writePluginWithSkill } from "./test-helpers/skill-plugin-fixtures.js";
 
-const resolveActiveRuntimeIntegrationSkillDirsMock = vi.hoisted(() => vi.fn(() => []));
+const resolveActiveRuntimeIntegrationSkillDirsMock = vi.hoisted(() =>
+  vi.fn<() => RuntimeIntegrationSkillDir[]>(() => []),
+);
 
 vi.mock("../runtime-integrations.js", async () => {
   const actual = await vi.importActual<typeof import("../runtime-integrations.js")>(
