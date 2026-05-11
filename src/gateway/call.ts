@@ -412,9 +412,12 @@ function resolveGatewayCallContext(opts: CallGatewayBaseOptions): ResolvedGatewa
   const config = opts.config ?? (canSkipConfigLoad ? ({} as OpenClawConfig) : loadGatewayConfig());
   const configPath = opts.configPath ?? resolveGatewayConfigPath(process.env);
   const isRemoteMode = config.gateway?.mode === "remote";
-  const remote = isRemoteMode
-    ? (config.gateway?.remote as GatewayRemoteSettings | undefined)
-    : undefined;
+  const bindMode = config.gateway?.bind ?? "loopback";
+  const configuredRemote = config.gateway?.remote as GatewayRemoteSettings | undefined;
+  const configuredRemoteUrl = trimToUndefined(configuredRemote?.url);
+  const shouldUseConfiguredRemote =
+    isRemoteMode || (bindMode === "tailnet" && Boolean(configuredRemoteUrl));
+  const remote = shouldUseConfiguredRemote ? configuredRemote : undefined;
   const remoteUrl = trimToUndefined(remote?.url);
   return {
     config,
@@ -498,7 +501,7 @@ async function resolveGatewayTlsFingerprint(params: {
     // Env overrides may still inherit configured remote TLS pinning for private cert deployments.
     // CLI overrides remain explicit-only and intentionally skip config remote TLS to avoid
     // accidentally pinning against caller-supplied target URLs.
-    context.isRemoteMode && context.urlOverrideSource !== "cli"
+    context.remoteUrl && context.urlOverrideSource !== "cli"
       ? trimToUndefined(context.remote?.tlsFingerprint)
       : undefined;
   return (

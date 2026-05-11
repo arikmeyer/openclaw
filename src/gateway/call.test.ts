@@ -338,6 +338,29 @@ describe("callGateway url resolution", () => {
     expect(lastClientOptions?.url).toBe(expectedUrl);
   });
 
+  it("uses configured NetBird WSS URL and TLS pin for a local tailnet-bound gateway", async () => {
+    getRuntimeConfig.mockReturnValue({
+      gateway: {
+        mode: "local",
+        bind: "tailnet",
+        tls: { enabled: true },
+        auth: { token: "local-token" },
+        remote: {
+          url: "wss://100.73.155.125:18789",
+          tlsFingerprint: "sha256:netbird-fingerprint",
+        },
+      },
+    });
+    resolveGatewayPort.mockReturnValue(18789);
+    pickPrimaryTailnetIPv4.mockReturnValue("100.73.155.125");
+
+    await callGateway({ method: "health" });
+
+    expect(lastClientOptions?.url).toBe("wss://100.73.155.125:18789");
+    expect(lastClientOptions?.token).toBe("local-token");
+    expect(lastClientOptions?.tlsFingerprint).toBe("sha256:netbird-fingerprint");
+  });
+
   it("uses url override in remote mode even when remote url is missing", async () => {
     getRuntimeConfig.mockReturnValue({
       gateway: { mode: "remote", bind: "loopback", remote: {} },
@@ -706,6 +729,26 @@ describe("buildGatewayConnectionDetails", () => {
     expect(details.url).toBe(expectedUrl);
     expect(details.urlSource).toBe("local loopback");
     expect(details.bindDetail).toBe("Bind: lan");
+  });
+
+  it("prefers configured remote URL for local tailnet-bound gateways", () => {
+    getRuntimeConfig.mockReturnValue({
+      gateway: {
+        mode: "local",
+        bind: "tailnet",
+        tls: { enabled: true },
+        remote: { url: "wss://100.73.155.125:18789" },
+      },
+    });
+    resolveGatewayPort.mockReturnValue(18789);
+    pickPrimaryTailnetIPv4.mockReturnValue("100.73.155.125");
+
+    const details = buildGatewayConnectionDetails();
+
+    expect(details.url).toBe("wss://100.73.155.125:18789");
+    expect(details.urlSource).toBe("config gateway.remote.url");
+    expect(details.bindDetail).toBeUndefined();
+    expect(details.remoteFallbackNote).toBeUndefined();
   });
 
   it("prefers remote url when configured", () => {

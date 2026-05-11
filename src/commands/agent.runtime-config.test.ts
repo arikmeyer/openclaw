@@ -1,6 +1,7 @@
 import path from "node:path";
 import { withTempHome as withTempHomeBase } from "openclaw/plugin-sdk/test-env";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { __testing as agentCommandTesting } from "../agents/agent-command.js";
 import { resolveAgentRuntimeConfig } from "../agents/agent-runtime-config.js";
 import { resolveSession } from "../agents/command/session.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
@@ -181,6 +182,37 @@ describe("agentCommand runtime config", () => {
       await resolveAgentRuntimeConfig(runtime, {
         runtimeTargetsChannelSecrets: true,
       });
+
+      const targetIds = resolveCommandConfigWithSecretsMock.mock.calls[0]?.[0].targetIds;
+      expect(targetIds.has("channels.telegram.botToken")).toBe(true);
+    });
+  });
+
+  it("includes deliverable ingress channel SecretRefs even when delivery is disabled", async () => {
+    await withTempHome(async (home) => {
+      const store = path.join(home, "sessions.json");
+      const loadedConfig = mockConfig(home, store);
+      loadedConfig.channels = {
+        telegram: {
+          botToken: { source: "env", provider: "default", id: "TELEGRAM_BOT_TOKEN" },
+        },
+      } as unknown as OpenClawConfig["channels"];
+      resolveCommandConfigWithSecretsMock.mockResolvedValueOnce({
+        resolvedConfig: loadedConfig,
+        effectiveConfig: loadedConfig,
+        diagnostics: [],
+      });
+
+      await agentCommandTesting.prepareAgentCommandExecution(
+        {
+          message: "hello",
+          sessionKey: "agent:main:direct:telegram-secret",
+          messageChannel: "telegram",
+          deliver: false,
+          senderIsOwner: true,
+        },
+        runtime,
+      );
 
       const targetIds = resolveCommandConfigWithSecretsMock.mock.calls[0]?.[0].targetIds;
       expect(targetIds.has("channels.telegram.botToken")).toBe(true);

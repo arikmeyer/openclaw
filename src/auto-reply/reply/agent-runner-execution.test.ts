@@ -22,6 +22,9 @@ const state = vi.hoisted(() => ({
   isCliProviderMock: vi.fn((_: unknown) => false),
   isInternalMessageChannelMock: vi.fn((_: unknown) => false),
   createBlockReplyDeliveryHandlerMock: vi.fn(),
+  resolveQueuedReplyExecutionConfigMock: vi.fn(
+    async (config: unknown, _context?: unknown) => config,
+  ),
 }));
 
 const GENERIC_RUN_FAILURE_TEXT =
@@ -140,18 +143,32 @@ vi.mock("./agent-runner-utils.js", () => ({
   buildEmbeddedRunExecutionParams: (params: {
     provider: string;
     model: string;
-    run: { provider?: string; authProfileId?: string; authProfileIdSource?: "auto" | "user" };
+    run: {
+      provider?: string;
+      authProfileId?: string;
+      authProfileIdSource?: "auto" | "user";
+      config?: unknown;
+    };
+    sessionCtx: { OriginatingChannel?: string; Provider?: string; Surface?: string };
   }) => ({
-    embeddedContext: {},
+    embeddedContext: {
+      messageProvider:
+        params.sessionCtx.OriginatingChannel ??
+        params.sessionCtx.Surface ??
+        params.sessionCtx.Provider,
+    },
     senderContext: {},
     runBaseParams: {
       provider: params.provider,
       model: params.model,
+      config: params.run.config,
       authProfileId: params.provider === params.run.provider ? params.run.authProfileId : undefined,
       authProfileIdSource:
         params.provider === params.run.provider ? params.run.authProfileIdSource : undefined,
     },
   }),
+  resolveQueuedReplyExecutionConfig: (config: unknown, context: unknown) =>
+    state.resolveQueuedReplyExecutionConfigMock(config, context),
   resolveQueuedReplyRuntimeConfig: <T>(config: T) => config,
   resolveModelFallbackOptions: vi.fn(() => ({})),
 }));
@@ -402,6 +419,10 @@ describe("runAgentTurnWithFallback", () => {
     state.isInternalMessageChannelMock.mockReturnValue(false);
     state.createBlockReplyDeliveryHandlerMock.mockReset();
     state.createBlockReplyDeliveryHandlerMock.mockReturnValue(undefined);
+    state.resolveQueuedReplyExecutionConfigMock.mockReset();
+    state.resolveQueuedReplyExecutionConfigMock.mockImplementation(
+      async (config: unknown) => config,
+    );
     state.runWithModelFallbackMock.mockImplementation(async (params: FallbackRunnerParams) => ({
       result: await params.run("anthropic", "claude"),
       provider: "anthropic",
@@ -563,6 +584,59 @@ describe("runAgentTurnWithFallback", () => {
     expect(state.runEmbeddedPiAgentMock.mock.calls[0]?.[0]).not.toHaveProperty(
       "agentHarnessId",
       "claude-cli",
+    );
+  });
+
+  it("resolves scoped channel secrets at the final embedded execution boundary", async () => {
+    const runAgentTurnWithFallback = await getRunAgentTurnWithFallback();
+    const followupRun = createFollowupRun();
+    const sourceConfig = {
+      channels: {
+        telegram: {
+          botToken: { source: "file", provider: "host_bundle", id: "OPENCLAW_TELEGRAM_BOT_TOKEN" },
+        },
+      },
+    } as unknown as FollowupRun["run"]["config"];
+    const resolvedConfig = {
+      channels: {
+        telegram: {
+          botToken: "resolved-token",
+        },
+      },
+    };
+    followupRun.run.messageProvider = "stale-provider";
+    followupRun.run.agentAccountId = "default";
+    followupRun.run.config = sourceConfig;
+    followupRun.originatingAccountId = undefined;
+    state.resolveQueuedReplyExecutionConfigMock.mockResolvedValueOnce(resolvedConfig);
+    state.runEmbeddedPiAgentMock.mockResolvedValueOnce({
+      payloads: [{ text: "reply" }],
+      meta: {},
+    });
+
+    const result = await runAgentTurnWithFallback({
+      ...createMinimalRunAgentTurnParams({
+        followupRun,
+        sessionCtx: {
+          Provider: "telegram",
+          AccountId: "default",
+          MessageSid: "msg",
+        } as unknown as TemplateContext,
+      }),
+    });
+
+    expect(result.kind).toBe("success");
+    expect(state.resolveQueuedReplyExecutionConfigMock).toHaveBeenCalledWith(sourceConfig, {
+      originatingChannel: undefined,
+      messageProvider: "telegram",
+      originatingAccountId: "default",
+      agentAccountId: "default",
+    });
+    expect(state.runEmbeddedPiAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: resolvedConfig,
+        messageProvider: "telegram",
+      }),
     );
   });
 
